@@ -1,0 +1,294 @@
+/*
+  Code for arduino to act as a bridge between a USB (connected to a PC) and an xsens device. 
+ */
+
+#include <SoftwareSerial.h>
+#include <xsensmessage.h>
+
+
+// software serial #2: RX = digital pin 8, TX = digital pin 9
+// on the Mega, use other pins instead, since 8 and 9 don't work on the Mega
+SoftwareSerial portTwo(9, 8);
+
+uint8_t byteRead; 
+
+#define Pin13LED         13
+
+#define Pin12LED         12
+
+#define XSENS_PWR 10
+
+int count=0; 
+
+//raw output in mt communication prtotocol to send to SoundTrap or xsens sensor. 
+uint8_t rawMessageOut[64];
+
+//the current incoming message
+XBusMessage messageIn; 
+
+//the current outgoing message
+XBusMessage messageOut; 
+
+//the length of the output message 
+uint8_t outLen=0; 
+
+//the last byte read from the buffer
+uint8_t inByte; 
+
+//holds orientation data. 
+float ori[4]; 
+
+
+/**
+ * Send a command to the xbus sensor. Note, only works when command message contains no data. 
+ */
+void sendXBusCommand(SoftwareSerial* portOne, XsMessageId messageId){
+  portOne->listen(); //make sure the port is listening, otherwise difficult to switch ports. 
+  messageOut.mid=messageId;
+  messageOut.len=0; 
+  outLen = XbusMessage_format(rawMessageOut, &messageOut);
+  writeXBusMessage(portOne, rawMessageOut, outLen); 
+}
+
+/*
+ * Send raw command to xsens sensor and await reply
+ */
+void writeXBusMessage(SoftwareSerial* portOne, byte command[], int size){
+  portOne->write(command, size);
+}
+
+
+/**
+ * Parse an MTData 2 message. Extracts usefulk info form from the message and send on to SoundTrap as quickly as possible. 
+ * Afterwards sends pressure and temperature data.
+ */
+void parseMTData2(XBusMessage* mtMessage){
+  
+  //uint8_t ori[19]; 
+  
+  uint8_t* dptr;
+  
+  //Find quaternion data and add to the soundtrap array. 
+  if (XbusMessage_getDataItemRaw(messageOut.charBufferRx, XDI_Quaternion, mtMessage, true))
+  {
+
+  /****Send Orientation Data to SoundTrap****/
+  //Want to do this quickly so send pressure after
+  messageOut.bid=XBUS_MASTERDEVICE;
+  messageOut.mid=XMID_MtData2;
+
+  Serial.print(" Orientation: ");
+  
+  float* p=ori;
+  XbusMessage_getDataItem(ori, XDI_Quaternion, &messageOut);
+
+  /*Print out to serial*/
+    int a;
+    for( a = 0; a < 4; a++ )
+    {
+       Serial.print(ori[a]);
+       Serial.print(" ");
+    }
+    Serial.println(" ");
+
+  }
+
+}
+
+/**
+ * Parse a recieved message, either from the SoundTrap or the Xsens sensor. 
+ */
+void parseMessage(XBusMessage* mtMessage){
+   switch (mtMessage->mid) 
+        {
+              case XMID_MtData2:
+//                  Serial.println("MTData2");
+//                  Serial.println(mtMessage->checksum);
+                  parseMTData2(mtMessage);
+                  //MTData2 message
+                  break;   
+              case XMID_ReqSTMessageAck:
+                  //SoundTrap Acknowledge. Means connected to SoundTrap and SoundTrap is ready to go. 
+                  break;                
+      
+                /****Acknowledgement without data*****/
+              case XMID_ResetAck:
+              case XMID_GotoMeasurementAck:                   
+                   //Serial.print("Go To Measurment Ack ");
+              case XMID_GotoConfigAck:
+                  //Serial.print("Config Ack ");
+                  break;             
+                
+              /****Acknowledgement with data*****/
+              case XMID_ReqPeriodAck:
+                  break;
+             case XMID_DeviceId:
+                  break;
+                
+              /****Commands from SoundTrap to XSENS*****/
+              case XMID_Wakeup:
+                  break;
+              case XMID_ReqDid:
+                  break;
+              case XMID_GotoConfig:
+                  Serial.println("Go To Config"); 
+                  break;
+              case XMID_Reset:
+                  break;
+              case XMID_ReqPeriod:
+                  break;
+              case XMID_GotoMeasurement:
+                  //Commands to pass on to xsens 
+                  Serial.print("Go To Measurment");
+                  break; 
+               /****Error message****/ 
+              case XMID_Error:
+                  //Error sent
+                  break; 
+            default:
+            break;
+        }
+}
+
+
+/**
+ * Wait for the next available or until timeout. 
+ */
+int readNextAvailable(SoftwareSerial* portOne){
+    int count=0;
+    while (portOne->available()==0 && count<50){
+        //do nothing;
+        count++;
+        delay(1);    
+    }
+    return portOne->read();
+}
+
+/**
+ * Read the xbus header  and data. The header values and data are passed
+ * into an xbus_message struct.. 
+ */
+bool readXBusMessage(SoftwareSerial* portOne, XBusMessage* mtMessage){
+     //BID
+     mtMessage->bid=readNextAvailable(portOne);
+     
+     //MID
+     mtMessage->mid=readNextAvailable(portOne);
+     
+     //LEN
+     mtMessage->len=readNextAvailable(portOne);
+
+//      //print some stuff out. 
+//      Serial.print(" BID: ");
+//      Serial.print(mtMessage->bid);
+//      Serial.print(" MID: ");
+//      Serial.print(mtMessage->mid);
+//      Serial.print(" LEN: ");
+//      Serial.print(mtMessage->len);
+
+
+    if (mtMessage->len>=ARRAY_SIZE)
+    {
+      return false; 
+    }
+    
+    if (mtMessage->len>0)
+    {
+       int bytes=portOne->readBytes(mtMessage->charBufferRx, mtMessage->len);
+//       int a;
+//       for( a = 0; a < mtMessage->len; a++ )
+//       {
+//          Serial.print(" ");
+//          Serial.print(mtMessage->charBufferRx[a]);
+//       }
+//       Serial.println(" bytes read");
+        if (bytes!=mtMessage->len){
+          return false; 
+        }
+    }
+
+      mtMessage->checksum=readNextAvailable(portOne);
+
+
+    return true; 
+     
+}
+
+
+/**
+ * Lisen on a port for xbus data and send a message to parseXBusMessage function. If no bytes are available the function returns
+ * /*! \portOne - the serial port to read from
+ */
+void listenOnPort(SoftwareSerial* portOne){
+    
+  // Now listen on the second port
+  portOne->listen();
+  // while there is data coming in, read it
+  // and send to the hardware serial port:
+
+  while (portOne->available() > 0) {
+    
+    inByte = portOne->read();
+    //Serial.print(inByte);  Serial.print(" ");
+
+    if (inByte==XBUS_PREAMBLE)
+    {
+      //read all bytes in message
+      if (readXBusMessage(portOne, &messageIn))
+      {
+          //analyse an xbus message. 
+          if (messageIn.bid==XBUS_MASTERDEVICE)
+          {
+             parseMessage(&messageIn); 
+          }
+      }
+    }
+  }  
+}
+
+
+
+void setup() {
+//  // Open serial communications and wait for port to open:
+  Serial.println("Lets's Go"); 
+
+  Serial.begin(38400);  
+  
+  portTwo.begin(38400);
+  portTwo.listen(); 
+
+  //set pin mode to power up the xsens sensor. 
+  pinMode(XSENS_PWR, OUTPUT);  
+  digitalWrite(XSENS_PWR, HIGH);   // sets the XSENS ON
+
+  
+  sendXBusCommand(&portTwo, XMID_GotoMeasurement);
+
+//  while (!Serial) {
+//    ; // wait for serial port to connect. Needed for native USB
+//    delay(5);
+//  }
+
+}
+
+void loop() {
+
+   listenOnPort(&portTwo);
+
+  // while (portTwo.available() && count<10){
+  //     TXLED1;
+  //     byteRead = portTwo.read(); 
+  //     Serial.write(byteRead);
+  //     count++;
+  //     delay(1);
+  // }
+  // TXLED0;
+  // count=0;
+
+  // while (Serial.available()){
+  //     byteRead = Serial.read(); 
+  //     portTwo.write(byteRead);
+  //     delay(5);
+  // }
+
+}
