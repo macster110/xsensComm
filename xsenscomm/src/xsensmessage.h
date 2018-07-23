@@ -33,8 +33,6 @@ extern "C" {
 /*! \brief Xbus length byte for message with an extended payload. */
 #define XBUS_EXTENDED_LENGTH (0xFF)
 
-
-//this is only for running the xsensmessage library on the xsens device.
 //#define SOUNDTRAP_DSP
 
 //typedef unsigned char uint8_t;
@@ -59,9 +57,11 @@ enum XsMessageId
   XMID_ResetAck           = 0x41,
   XMID_Error              = 0x42,
   XMID_ReqPeriodAck       = 0x05,
-  XMID_ReqPeriod       	  = 0x04,
+  XMID_ReqPeriod          = 0x04,
   XMID_ReqSTMessage       = 0xD5,
-  XMID_ReqSTMessageAck    = 0xD4
+  XMID_ReqSTMessageAck    = 0xD4,
+  XMID_SetNoRotation      = 0x22,
+
 };
 
 /*! \brief Xbus data message type IDs. */
@@ -76,9 +76,12 @@ enum XsDataIdentifier
   XDI_DeltaQ         = 0x8030,
   XDI_MagneticField  = 0xC020,
   XDI_StatusWord     = 0xE020,
-  XDI_EulerAngles   = 0x2030,
-  XDI_Temperature	= 0x0810, //2064 in decimal
-  XDI_Pressure		= 0x3020  //12320 in decimal
+  XDI_EulerAngles    = 0x2030,
+  XDI_Temperature	= 0x2040, //2064 in decimal - temperature data
+  XDI_Pressure    	 = 0x2050,  //2080 in decimal - pressure data
+  XDI_RGB    		 = 0x2060, //2096 in decimal- red, green, blue data
+  XDI_BAT    		 = 0x2070,   //2112 in decimal- battery data
+  XDI_BATV    		 = 0x2080   //2112 in decimal- battery data
 };
 
 //structure to hold message data
@@ -103,14 +106,20 @@ typedef struct
     * \brief contains all data within a message
    */
    uint8_t charBufferRx[ARRAY_SIZE];
+
+   /**
+   * Checksum
+   */
+   uint8_t checksum;
+
  } XBusMessage;
 
 
  //structure to hold message data
  typedef struct
   {
-	  /*! \brief the type of data. */
-	  uint16_t dataid;
+    /*! \brief the type of data. */
+    uint16_t dataid;
 
 
 
@@ -121,7 +130,7 @@ typedef struct
     * for XMID_OutputConfig messages it is the number of OutputConfiguration
     * elements in the configuration array.
     */
-	  uint8_t len;
+    uint8_t len;
 
     /*!
      * \brief contains all data within a message
@@ -130,36 +139,17 @@ typedef struct
   } XBusData;
 
 
-  //structure to hold output configuration.
-  typedef struct
-  {
-  	/*! \brief Data type of the output. */
-  	enum XsDataIdentifier dtype;
+int XbusMessage_format(uint8_t* raw, XBusMessage* message);
 
-  	/*!
-  	 * \brief The output frequency in Hz, or 65535 if the value should be
-  	 * included in every data message.
-  	 */
-  	uint16_t freq;
-  } OutputConfiguration;
-
-//reading message
 bool XbusMessage_getDataItemRaw(uint8_t* item, enum XsDataIdentifier id, XBusMessage* message, bool flags);
 
 bool XbusMessage_getDataItem(void* item, enum XsDataIdentifier id, XBusMessage* message);
 
-//read
 uint8_t const* XbusUtility_readF(float* out, uint8_t const* in);
 
 uint8_t* XbusUtility_writeU16(uint8_t* out, uint16_t in);
 
 uint8_t const* XbusUtility_readU16(uint16_t* out, uint8_t const* in);
-
-//sending message
-bool XBusMessage_setOutPutConfig(OutputConfiguration const* conf, uint8_t elements, XBusMessage* message);
-
-int XbusMessage_format(uint8_t* raw, XBusMessage* message);
-
 
 
 #ifdef __cplusplus

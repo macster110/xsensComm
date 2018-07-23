@@ -74,6 +74,8 @@ int main(void) {
 
 	/**************Test Functions*************/
 
+	printf("*******Testing Data Functions*********\n");
+
 	//test data function
 	float ori[4];
 	if (XbusMessage_getDataItem(ori, XDI_Quaternion, &m))
@@ -109,6 +111,8 @@ int main(void) {
 	}
 
 
+	printf("*******Testing Random Bytes and Bits*********\n");
+
 	XBusMessage m2;
 	m2.mid=XMID_MtData2;
 	m2.len=14;
@@ -130,7 +134,7 @@ int main(void) {
 	XbusUtility_readU16(&flag, dptr);
 
 
-	printf("flag %d len %d", flag, m.len);
+	//printf("flag %d len %d ", flag, m.len "\n");
 
 
 	if (XbusMessage_getDataItemRaw(rawDat, XDI_Temperature, &m, true))
@@ -173,9 +177,34 @@ int main(void) {
 	dataToString(ori, 4, "QT");
 	dataToString(temp, 2, "PT");
 
-	/***Test output settings configuration***/
+	printf("*******Testing RGB Data*********\n");
+
+	//first make a test thing
 
 
+	printf("*****************************\n");
+
+	//Testing a format outbut.
+	printf("**********Testing message output format**********\n");
+
+	//create an array
+	uint8_t rawOut[255];
+	//create a message
+	XBusMessage mtest;
+	mtest.mid=XMID_ReqOutputConfig;
+	mtest.len=0;
+
+	int len=XbusMessage_format(&rawDat, &mtest);
+
+	int i;
+	printf("Raw \n");
+	for (i=0; i<len; i++)
+	{
+		printf(" %d", rawDat[i]);
+	}
+	printf("\n");
+
+	printf("********************\n");
 
 	/****Test conversion of 16 bit bytes to 32 bit float*******/
 

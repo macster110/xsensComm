@@ -3,8 +3,9 @@
  Name        : xsenscomm.c
  Author      : Jamie Macaulay
  Version     :
- Copyright   : Your copyright notice
- Description : Hello World in C, Ansi-style
+ Copyright   : Open Source
+ Description : Library for parsing of xsens and other data signals from SoundTrap
+ sensor package
  ============================================================================
  */
 
@@ -93,7 +94,7 @@ uint8_t const* XbusUtility_readU8(uint8_t* out, uint8_t const* in)
 uint8_t const* XbusUtility_readU16(uint16_t* out, uint8_t const* in)
 {
 	*out = (in[0] << 8) | in[1];
-	return in + 2; //don;t use sizeof due to differences in DSP and arduino
+	return in + 2; //don't use sizeof due to differences in DSP and arduino
 }
 
 
@@ -179,32 +180,6 @@ static void formatPayload(uint8_t* raw, XBusMessage* message)
 		break;
 	}
 }
-
-/*!
- * \brief. Format a message to be an output configuration.
- */
-bool XBusMessage_setOutPutConfig(OutputConfiguration const* conf, uint8_t elements, XBusMessage* message)
-{
-
-	if (elements>ARRAY_SIZE)
-	{
-		//too many settings for the max message size in this library
-		return false;
-	}
-
-	message->mid = XMID_SetOutputConfig;
-	message->len = elements;
-
-	uint8_t* array = (uint8_t*) conf;
-	int i;
-	for (i = 0; i < elements; i++) {
-		message->charBufferRx[i]= array[i];
-	}
-
-	//TODO add some checks
-	return true;
-}
-
 
 /*!
  * \brief Format a message into the raw Xbus format ready for transmission to
@@ -378,16 +353,18 @@ bool XbusMessage_getDataItem(void* item, enum XsDataIdentifier id, XBusMessage* 
 		case XDI_DeltaQ:
 			readFloats(item, raw, 4);
 			break;
-
 		case XDI_DeltaV:
 		case XDI_Acceleration:
 		case XDI_RateOfTurn:
 		case XDI_MagneticField:
+		case XDI_RGB:
 		case XDI_EulerAngles:
 			readFloats(item, raw, 3);
 			break;
 		case XDI_Temperature:
 		case XDI_Pressure:
+		case XDI_BAT:
+		case XDI_BATV:
 			raw = XbusUtility_readF(item, raw);
 			break;
 		default:
