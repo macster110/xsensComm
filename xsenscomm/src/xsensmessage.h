@@ -58,10 +58,17 @@ enum XsMessageId
   XMID_Error              = 0x42,
   XMID_ReqPeriodAck       = 0x05,
   XMID_ReqPeriod          = 0x04,
+  XMID_ReqBaudRate        = 0x18,
+  XMID_ReqBaudRateAck     = 0x19,
   XMID_ReqSTMessage       = 0xD5,
   XMID_ReqSTMessageAck    = 0xD4,
   XMID_SetNoRotation      = 0x22,
-
+  XMID_ReqFilterProfile   = 0x64,
+  XMID_ReqFilterProfileAck= 0x65,
+  XMID_RestoreFactoryDef  = 0xE,
+  XMID_SetRTCTime         = 0x66, 
+  XMID_ReqSDFormat        = 0x67,
+  XMID_ReqSDSize          = 0x68 
 };
 
 /*! \brief Xbus data message type IDs. */
@@ -77,11 +84,13 @@ enum XsDataIdentifier
   XDI_MagneticField  = 0xC020,
   XDI_StatusWord     = 0xE020,
   XDI_EulerAngles    = 0x2030,
-  XDI_Temperature	= 0x2040, //2064 in decimal - temperature data
-  XDI_Pressure    	 = 0x2050,  //2080 in decimal - pressure data
-  XDI_RGB    		 = 0x2060, //2096 in decimal- red, green, blue data
-  XDI_BAT    		 = 0x2070,   //2112 in decimal- battery data
-  XDI_BATV    		 = 0x2080   //2112 in decimal- battery data
+  XDI_Temperature    = 0x2040, //2064 in decimal - temperature data
+  XDI_Pressure       = 0x2050,  //2080 in decimal - pressure data
+  XDI_RGB            = 0x2060, //2096 in decimal- red, green, blue data
+  XDI_BAT            = 0x2070,   //2112 in decimal- battery data
+  XDI_BATV           = 0x2080,   //2112 in decimal- battery data
+  XDI_LightSpectrum  = 0x2090,
+  XDI_SDCardUsed     = 0x2100
 };
 
 //structure to hold message data
